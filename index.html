@@ -62,6 +62,11 @@
             margin: 10px 0;
         }
 
+        .cart-item {
+            border-top: 1px solid #ddd;
+            padding: 15px 0;
+        }
+
         button {
             padding: 10px 16px;
             background-color: #2457a7;
@@ -136,8 +141,29 @@
         </div>
 
         <div v-else class="cart-page">
+
             <h2>Your cart</h2>
             <p>Items in your cart: {{ numberOfItems }}</p>
+
+            <p v-if="numberOfItems === 0">Your cart is empty.</p>
+
+            <div
+                v-for="lesson in lessons"
+                v-bind:key="lesson.id">
+
+                <div
+                    v-if="cartLessonCount(lesson.id) > 0"
+                    class="cart-item">
+
+                    <h3>{{ lesson.subject }}</h3>
+                    <p>Location: {{ lesson.location }}</p>
+                    <p>Price per space: Rs {{ lesson.price }}</p>
+                    <p>Quantity: {{ cartLessonCount(lesson.id) }}</p>
+
+                </div>
+
+            </div>
+
         </div>
 
     </div>
@@ -252,6 +278,18 @@
 
                 toggleCart() {
                     this.displayCart = !this.displayCart;
+                },
+
+                cartLessonCount(id) {
+                    let count = 0;
+
+                    for (let item of this.cart) {
+                        if (item === id) {
+                            count++;
+                        }
+                    }
+
+                    return count;
                 }
             },
 
