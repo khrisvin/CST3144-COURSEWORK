@@ -31,9 +31,8 @@
             color: #2457a7;
         }
 
-        .cart-summary {
+        .cart-button {
             margin-bottom: 20px;
-            font-weight: bold;
         }
 
         .lesson-list {
@@ -42,7 +41,8 @@
             gap: 20px;
         }
 
-        .lesson {
+        .lesson,
+        .cart-page {
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 8px;
@@ -72,6 +72,10 @@
             cursor: pointer;
         }
 
+        button i {
+            margin-right: 6px;
+        }
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -86,12 +90,22 @@
         <h1>{{ message }}</h1>
         <p>Explore our after-school classes and activities.</p>
 
-        <p class="cart-summary" aria-live="polite">
-            <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
-            Items in cart: {{ numberOfItems }}
-        </p>
+        <button
+            type="button"
+            class="cart-button"
+            v-on:click="toggleCart"
+            v-bind:disabled="!displayCart && numberOfItems === 0">
 
-        <div class="lesson-list">
+            <i
+                class="fa-solid fa-cart-shopping"
+                aria-hidden="true">
+            </i>
+
+            {{ displayCart ? 'Back to lessons' : 'View cart' }}
+            ({{ numberOfItems }})
+        </button>
+
+        <div v-if="!displayCart" class="lesson-list">
 
             <div
                 v-for="lesson in lessons"
@@ -119,6 +133,11 @@
 
             </div>
 
+        </div>
+
+        <div v-else class="cart-page">
+            <h2>Your cart</h2>
+            <p>Items in your cart: {{ numberOfItems }}</p>
         </div>
 
     </div>
@@ -214,7 +233,8 @@
                         }
                     ],
 
-                    cart: []
+                    cart: [],
+                    displayCart: false
                 };
             },
 
@@ -228,6 +248,10 @@
                         this.cart.push(lesson.id);
                         lesson.spaces--;
                     }
+                },
+
+                toggleCart() {
+                    this.displayCart = !this.displayCart;
                 }
             },
 
