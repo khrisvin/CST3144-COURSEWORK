@@ -89,6 +89,33 @@
         .remove-button {
             background-color: #b83232;
         }
+
+        .checkout-form {
+            border-top: 1px solid #ddd;
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 350px;
+            padding: 10px;
+            border: 1px solid #aaa;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .input-help {
+            color: #555;
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -172,6 +199,45 @@
                     </button>
 
                 </div>
+
+            </div>
+
+            <div class="checkout-form">
+
+                <h3>Checkout</h3>
+
+                <p>
+                    <label for="customer-name">Name:</label>
+                    <input
+                        id="customer-name"
+                        type="text"
+                        v-model="order.name"
+                        aria-describedby="name-help">
+                </p>
+
+                <p id="name-help" class="input-help">
+                    Use English letters only, without spaces or numbers.
+                </p>
+
+                <p>
+                    <label for="customer-phone">Phone:</label>
+                    <input
+                        id="customer-phone"
+                        type="tel"
+                        v-model="order.phone"
+                        aria-describedby="phone-help">
+                </p>
+
+                <p id="phone-help" class="input-help">
+                    Use digits only, without spaces.
+                </p>
+
+                <button
+                    type="button"
+                    v-on:click="checkout"
+                    v-bind:disabled="!canCheckout">
+                    Checkout
+                </button>
 
             </div>
 
@@ -271,7 +337,12 @@
                     ],
 
                     cart: [],
-                    displayCart: false
+                    displayCart: false,
+
+                    order: {
+                        name: '',
+                        phone: ''
+                    }
                 };
             },
 
@@ -310,12 +381,33 @@
                         this.cart.splice(index, 1);
                         lesson.spaces++;
                     }
+                },
+
+                checkout() {
+                    if (this.canCheckout) {
+                        alert('Your order has been confirmed.');
+                        this.cart = [];
+                        this.order.name = '';
+                        this.order.phone = '';
+                    }
                 }
             },
 
             computed: {
                 numberOfItems() {
                     return this.cart.length;
+                },
+
+                canCheckout() {
+                    const validName =
+                        /^[A-Za-z]+$/.test(this.order.name);
+
+                    const validPhone =
+                        /^[0-9]+$/.test(this.order.phone);
+
+                    return this.numberOfItems > 0
+                        && validName
+                        && validPhone;
                 }
             }
         });
