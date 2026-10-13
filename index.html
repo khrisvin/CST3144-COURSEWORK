@@ -85,6 +85,10 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        .remove-button {
+            background-color: #b83232;
+        }
     </style>
 </head>
 
@@ -159,6 +163,13 @@
                     <p>Location: {{ lesson.location }}</p>
                     <p>Price per space: Rs {{ lesson.price }}</p>
                     <p>Quantity: {{ cartLessonCount(lesson.id) }}</p>
+
+                    <button
+                        type="button"
+                        class="remove-button"
+                        v-on:click="removeFromCart(lesson)">
+                        Remove one
+                    </button>
 
                 </div>
 
@@ -290,6 +301,15 @@
                     }
 
                     return count;
+                },
+
+                removeFromCart(lesson) {
+                    const index = this.cart.indexOf(lesson.id);
+
+                    if (index !== -1) {
+                        this.cart.splice(index, 1);
+                        lesson.spaces++;
+                    }
                 }
             },
 
