@@ -152,7 +152,10 @@
             v-on:click="toggleCart"
             v-bind:disabled="!displayCart && numberOfItems === 0">
 
-            <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
+            <i
+                class="fa-solid fa-cart-shopping"
+                aria-hidden="true">
+            </i>
 
             {{ displayCart ? 'Back to lessons' : 'View cart' }}
             ({{ numberOfItems }})
@@ -336,7 +339,7 @@
             },
 
             mounted() {
-                fetch('lessons.json')
+                fetch('http://localhost:3000/lessons')
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Could not load lessons.');
@@ -353,7 +356,7 @@
                     })
                     .catch(error => {
                         this.loadError =
-                            'Unable to load lessons. Check lessons.json and open the page using Live Server.';
+                            'Unable to load lessons. Make sure the backend is running and refresh the page.';
 
                         console.error('Error loading lessons:', error);
                     })
