@@ -136,6 +136,10 @@
         .error-message {
             color: #b83232;
         }
+
+        .success-message {
+            color: #237a38;
+        }
     </style>
 </head>
 
@@ -150,7 +154,7 @@
             type="button"
             class="cart-button"
             v-on:click="toggleCart"
-            v-bind:disabled="!displayCart && numberOfItems === 0">
+            v-bind:disabled="submitting || (!displayCart && numberOfItems === 0)">
 
             <i
                 class="fa-solid fa-cart-shopping"
@@ -160,6 +164,13 @@
             {{ displayCart ? 'Back to lessons' : 'View cart' }}
             ({{ numberOfItems }})
         </button>
+
+        <p
+            v-if="checkoutSuccess"
+            class="success-message"
+            role="status">
+            {{ checkoutSuccess }}
+        </p>
 
         <div v-if="!displayCart">
 
@@ -264,7 +275,8 @@
                     <button
                         type="button"
                         class="remove-button"
-                        v-on:click="removeFromCart(lesson)">
+                        v-on:click="removeFromCart(lesson)"
+                        v-bind:disabled="submitting">
                         Remove one
                     </button>
 
@@ -283,6 +295,7 @@
                         id="customer-name"
                         type="text"
                         v-model="order.name"
+                        v-bind:disabled="submitting"
                         aria-describedby="name-help">
                 </p>
 
@@ -297,6 +310,7 @@
                         id="customer-phone"
                         type="tel"
                         v-model="order.phone"
+                        v-bind:disabled="submitting"
                         aria-describedby="phone-help">
                 </p>
 
@@ -304,11 +318,18 @@
                     Use digits only, without spaces.
                 </p>
 
+                <p
+                    v-if="checkoutError"
+                    class="error-message"
+                    role="alert">
+                    {{ checkoutError }}
+                </p>
+
                 <button
                     type="button"
                     v-on:click="checkout"
                     v-bind:disabled="!canCheckout">
-                    Checkout
+                    {{ submitting ? 'Submitting...' : 'Checkout' }}
                 </button>
 
             </div>
@@ -331,6 +352,9 @@
                     loadError: '',
                     cart: [],
                     displayCart: false,
+                    submitting: false,
+                    checkoutError: '',
+                    checkoutSuccess: '',
                     order: {
                         name: '',
                         phone: ''
@@ -367,18 +391,22 @@
 
             methods: {
                 canAddToCart(lesson) {
-                    return lesson.spaces > 0;
+                    return !this.submitting && lesson.spaces > 0;
                 },
 
                 addToCart(lesson) {
                     if (this.canAddToCart(lesson)) {
+                        this.checkoutSuccess = '';
+                        this.checkoutError = '';
                         this.cart.push(lesson.id);
                         lesson.spaces--;
                     }
                 },
 
                 toggleCart() {
-                    this.displayCart = !this.displayCart;
+                    if (!this.submitting) {
+                        this.displayCart = !this.displayCart;
+                    }
                 },
 
                 cartLessonCount(id) {
@@ -394,22 +422,69 @@
                 },
 
                 removeFromCart(lesson) {
+                    if (this.submitting) {
+                        return;
+                    }
+
                     const index = this.cart.indexOf(lesson.id);
 
                     if (index !== -1) {
                         this.cart.splice(index, 1);
                         lesson.spaces++;
+                        this.checkoutError = '';
                     }
                 },
 
                 checkout() {
-                    if (this.canCheckout) {
-                        alert('Your order has been confirmed.');
-
-                        this.cart = [];
-                        this.order.name = '';
-                        this.order.phone = '';
+                    if (!this.canCheckout) {
+                        return;
                     }
+
+                    this.submitting = true;
+                    this.checkoutError = '';
+                    this.checkoutSuccess = '';
+
+                    const newOrder = {
+                        name: this.order.name,
+                        phone: this.order.phone,
+                        lessonIds: [...this.cart]
+                    };
+
+                    fetch('http://localhost:3000/orders', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(newOrder)
+                    })
+                        .then(response => {
+                            return response.json().then(data => {
+                                if (!response.ok) {
+                                    throw new Error(
+                                        data.message || 'Order submission failed.'
+                                    );
+                                }
+
+                                return data;
+                            });
+                        })
+                        .then(data => {
+                            this.checkoutSuccess =
+                                `Order ${data.order.id} submitted successfully.`;
+
+                            this.cart = [];
+                            this.order.name = '';
+                            this.order.phone = '';
+                        })
+                        .catch(error => {
+                            this.checkoutError =
+                                'Could not confirm your order. Your cart has been kept. Check the backend connection.';
+
+                            console.error('Error submitting order:', error);
+                        })
+                        .finally(() => {
+                            this.submitting = false;
+                        });
                 }
             },
 
@@ -425,7 +500,8 @@
                     const validPhone =
                         /^[0-9]+$/.test(this.order.phone);
 
-                    return this.numberOfItems > 0
+                    return !this.submitting
+                        && this.numberOfItems > 0
                         && validName
                         && validPhone;
                 },
