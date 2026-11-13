@@ -21,14 +21,18 @@
             color: #222;
         }
 
-        [v-cloak] { display: none; }
+        [v-cloak] {
+            display: none;
+        }
 
         #app {
             max-width: 1100px;
             margin: 0 auto;
         }
 
-        h1 { color: #2457a7; }
+        h1 {
+            color: #2457a7;
+        }
 
         .toolbar,
         .sort-controls {
@@ -77,7 +81,9 @@
             cursor: not-allowed;
         }
 
-        .remove-button { background: #b83232; }
+        .remove-button {
+            background: #b83232;
+        }
 
         .checkout-form {
             border-top: 1px solid #ddd;
@@ -111,8 +117,13 @@
             font-size: 14px;
         }
 
-        .error-message { color: #b83232; }
-        .success-message { color: #237a38; }
+        .error-message {
+            color: #b83232;
+        }
+
+        .success-message {
+            color: #237a38;
+        }
     </style>
 </head>
 
@@ -126,20 +137,25 @@
                 type="button"
                 @click="displayCart = !displayCart"
                 :disabled="submitting || (!displayCart && !cart.length)">
-                <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
+                <i
+                    class="fa-solid fa-cart-shopping"
+                    aria-hidden="true">
+                </i>
                 {{ displayCart ? 'Back to lessons' : 'View cart' }}
                 ({{ cart.length }})
             </button>
 
             <button
                 type="button"
-                @click="loadLessons"
+                @click="refreshLessons"
                 :disabled="loading || submitting">
                 Refresh availability
             </button>
         </div>
 
-        <p v-if="loading" role="status">Loading availability...</p>
+        <p v-if="loading" role="status">
+            Loading availability...
+        </p>
 
         <p v-if="loadError" class="error-message" role="alert">
             {{ loadError }}
@@ -157,6 +173,7 @@
             <div class="sort-controls">
                 <div>
                     <label for="sort-by">Sort by:</label>
+
                     <select id="sort-by" v-model="sortBy">
                         <option value="subject">Subject</option>
                         <option value="location">Location</option>
@@ -167,6 +184,7 @@
 
                 <div>
                     <label for="sort-order">Order:</label>
+
                     <select id="sort-order" v-model="sortOrder">
                         <option value="asc">Ascending</option>
                         <option value="desc">Descending</option>
@@ -222,9 +240,9 @@
                 <p>Quantity: {{ item.quantity }}</p>
 
                 <p
-                    v-if="!item.exists || item.quantity > item.spaces"
+                    v-if="!pendingOrder && (!item.exists || item.quantity > item.spaces)"
                     class="error-message">
-                    Only {{ item.spaces }} spaces are currently available.
+                    Only {{ item.spaces }} spaces are available.
                     Remove unavailable items before checkout.
                 </p>
 
@@ -232,7 +250,7 @@
                     type="button"
                     class="remove-button"
                     @click="removeFromCart(item.id)"
-                    :disabled="submitting || loading || orderUncertain">
+                    :disabled="cartLocked || loading">
                     Remove one
                 </button>
             </div>
@@ -240,13 +258,19 @@
             <div class="checkout-form">
                 <h3>Checkout</h3>
 
+                <p v-if="pendingOrder" role="status">
+                    Order {{ pendingOrder.id }} has been saved.
+                    Confirmation is still required.
+                </p>
+
                 <p>
                     <label for="customer-name">Name:</label>
+
                     <input
                         id="customer-name"
                         type="text"
                         v-model="order.name"
-                        :disabled="submitting || orderUncertain"
+                        :disabled="cartLocked"
                         aria-describedby="name-help">
                 </p>
 
@@ -256,12 +280,13 @@
 
                 <p>
                     <label for="customer-phone">Phone:</label>
+
                     <input
                         id="customer-phone"
                         type="tel"
                         inputmode="numeric"
                         v-model="order.phone"
-                        :disabled="submitting || orderUncertain"
+                        :disabled="cartLocked"
                         aria-describedby="phone-help">
                 </p>
 
@@ -273,7 +298,13 @@
                     type="button"
                     @click="checkout"
                     :disabled="!canCheckout">
-                    {{ submitting ? 'Submitting...' : 'Checkout' }}
+                    {{
+                        submitting
+                            ? 'Submitting...'
+                            : pendingOrder
+                                ? 'Retry confirmation'
+                                : 'Checkout'
+                    }}
                 </button>
             </div>
         </div>
@@ -296,7 +327,10 @@
                     submitting: false,
                     checkoutError: '',
                     checkoutSuccess: '',
-                    orderUncertain: false,
+                    pendingOrder: null,
+                    postUncertain: false,
+                    confirmationUncertain: false,
+                    lastConfirmationUpdates: null,
                     order: {
                         name: '',
                         phone: ''
@@ -305,40 +339,66 @@
             },
 
             mounted() {
-                this.loadLessons();
+                this.refreshLessons();
             },
 
             methods: {
+                // Fetch JSON and preserve the HTTP status on errors.
+                requestJson(path, options = {}) {
+                    return fetch(`${API_URL}${path}`, options)
+                        .then(response => {
+                            return response.json().then(data => {
+                                if (!response.ok) {
+                                    const error = new Error(
+                                        data.message || 'Request failed.'
+                                    );
+                                    error.status = response.status;
+                                    throw error;
+                                }
+
+                                return data;
+                            });
+                        });
+                },
+
+                // This method rejects on failure so checkout can stop.
                 loadLessons() {
                     this.loading = true;
                     this.loadError = '';
 
-                    return fetch(`${API_URL}/lessons`, {
+                    return this.requestJson('/lessons', {
                         cache: 'no-store'
                     })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Could not load lessons.');
-                            }
-                            return response.json();
-                        })
                         .then(data => {
-                            if (!Array.isArray(data)) {
+                            if (
+                                !Array.isArray(data) ||
+                                !data.every(lesson =>
+                                    Number.isSafeInteger(lesson.id) &&
+                                    Number.isSafeInteger(lesson.spaces) &&
+                                    lesson.spaces >= 0
+                                )
+                            ) {
                                 throw new Error('Invalid lesson data.');
                             }
 
-                            // Keep database availability unchanged locally.
                             this.lessons = data;
                         })
                         .catch(error => {
                             this.loadError =
                                 'Could not refresh availability. ' +
-                                'Check the backend and click Refresh availability.';
-                            console.error(error);
+                                'Check the backend and try again.';
+                            throw error;
                         })
                         .finally(() => {
                             this.loading = false;
                         });
+                },
+
+                // Button/mounted wrapper handles load failures.
+                refreshLessons() {
+                    return this.loadLessons().catch(error => {
+                        console.error('Error loading lessons:', error);
+                    });
                 },
 
                 cartLessonCount(id) {
@@ -346,7 +406,6 @@
                 },
 
                 availableSpaces(lesson) {
-                    // Cart items are not reserved in MongoDB until checkout.
                     return Math.max(
                         0,
                         lesson.spaces - this.cartLessonCount(lesson.id)
@@ -354,27 +413,22 @@
                 },
 
                 canAddToCart(lesson) {
-                    return !this.loading &&
+                    return !this.cartLocked &&
+                        !this.loading &&
                         !this.loadError &&
-                        !this.submitting &&
-                        !this.orderUncertain &&
                         this.availableSpaces(lesson) > 0;
                 },
 
                 addToCart(lesson) {
                     if (!this.canAddToCart(lesson)) return;
 
-                    this.checkoutSuccess = '';
                     this.checkoutError = '';
+                    this.checkoutSuccess = '';
                     this.cart.push(lesson.id);
                 },
 
                 removeFromCart(id) {
-                    if (
-                        this.submitting ||
-                        this.loading ||
-                        this.orderUncertain
-                    ) return;
+                    if (this.cartLocked || this.loading) return;
 
                     const index = this.cart.indexOf(id);
 
@@ -384,6 +438,138 @@
                     }
                 },
 
+                saveOrder() {
+                    // Retry confirmation of an existing order, not POST.
+                    if (this.pendingOrder) {
+                        return Promise.resolve();
+                    }
+
+                    const payload = {
+                        name: this.order.name,
+                        phone: this.order.phone,
+                        lessonIds: [...this.cart]
+                    };
+
+                    return this.requestJson('/orders', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                        .then(data => {
+                            if (
+                                !data.order ||
+                                !data.order.id ||
+                                data.order.status !== 'pending'
+                            ) {
+                                throw new Error(
+                                    'The backend did not return a pending order.'
+                                );
+                            }
+
+                            this.pendingOrder = data.order;
+                        })
+                        .catch(error => {
+                            // A lost POST response may hide a saved order.
+                            if (
+                                error.status !== 400 &&
+                                error.status !== 409
+                            ) {
+                                this.postUncertain = true;
+                            }
+
+                            throw error;
+                        });
+                },
+
+                buildConfirmationUpdates() {
+                    const quantities = new Map();
+
+                    for (const id of this.pendingOrder.lessonIds) {
+                        quantities.set(
+                            id,
+                            (quantities.get(id) || 0) + 1
+                        );
+                    }
+
+                    return [...quantities].map(([id, quantity]) => {
+                        const lesson = this.lessons.find(
+                            item => item.id === id
+                        );
+
+                        if (!lesson || lesson.spaces < quantity) {
+                            throw new Error(
+                                `Not enough spaces for ${
+                                    lesson ? lesson.subject : `lesson ${id}`
+                                }. Your order remains pending.`
+                            );
+                        }
+
+                        return {
+                            id,
+                            spaces: lesson.spaces - quantity
+                        };
+                    });
+                },
+
+                sendConfirmation(updates) {
+                    this.lastConfirmationUpdates = updates;
+
+                    return this.requestJson(
+                        `/orders/${this.pendingOrder.id}/confirm`,
+                        {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                lessonUpdates: updates
+                            })
+                        }
+                    )
+                        .then(data => {
+                            if (
+                                !data.order ||
+                                data.order.status !== 'confirmed'
+                            ) {
+                                throw new Error(
+                                    'Invalid order confirmation.'
+                                );
+                            }
+
+                            this.confirmationUncertain = false;
+                            return data;
+                        })
+                        .catch(error => {
+                            // Retry the same PUT if its outcome is unknown.
+                            // The backend checks whether it already confirmed.
+                            this.confirmationUncertain =
+                                ![400, 404, 409].includes(error.status);
+
+                            throw error;
+                        });
+                },
+
+                confirmOrder() {
+                    if (
+                        this.confirmationUncertain &&
+                        this.lastConfirmationUpdates
+                    ) {
+                        return this.sendConfirmation(
+                            this.lastConfirmationUpdates
+                        );
+                    }
+
+                    return this.loadLessons()
+                        .then(() => {
+                            const updates =
+                                this.buildConfirmationUpdates();
+
+                            return this.sendConfirmation(updates);
+                        });
+                },
+
                 checkout() {
                     if (!this.canCheckout) return;
 
@@ -391,71 +577,40 @@
                     this.checkoutError = '';
                     this.checkoutSuccess = '';
 
-                    const newOrder = {
-                        name: this.order.name,
-                        phone: this.order.phone,
-                        lessonIds: [...this.cart]
-                    };
-
-                    fetch(`${API_URL}/orders`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(newOrder)
-                    })
-                        .then(response => {
-                            return response.json().then(data => {
-                                if (!response.ok) {
-                                    const error = new Error(
-                                        data.message || 'Order submission failed.'
-                                    );
-                                    error.status = response.status;
-                                    throw error;
-                                }
-
-                                if (!data.order || !data.order.id) {
-                                    throw new Error('Invalid order confirmation.');
-                                }
-
-                                return data;
-                            });
-                        })
+                    this.saveOrder()
+                        .then(() => this.confirmOrder())
                         .then(data => {
-                            // Record success before refreshing availability.
                             this.checkoutSuccess =
-                                `Order ${data.order.id} submitted successfully.`;
+                                `Order ${data.order.id} confirmed successfully.`;
 
                             this.cart = [];
                             this.order.name = '';
                             this.order.phone = '';
+                            this.pendingOrder = null;
+                            this.lastConfirmationUpdates = null;
+                            this.confirmationUncertain = false;
                             this.displayCart = false;
 
-                            // Refresh errors are handled by loadLessons.
-                            // They do not turn a confirmed order into a failure.
-                            return this.loadLessons();
+                            // A refresh failure must not undo confirmed success.
+                            return this.refreshLessons();
                         })
                         .catch(error => {
-                            if (
-                                error.status === 400 ||
-                                error.status === 409
-                            ) {
+                            if (this.postUncertain) {
+                                this.checkoutError =
+                                    'The order submission could not be confirmed. ' +
+                                    'Checkout is paused to avoid another order. ' +
+                                    'Check Atlas before reloading or ordering again.';
+                            } else if (this.pendingOrder) {
+                                this.checkoutError =
+                                    `${error.message} ` +
+                                    'Your saved order and cart have been kept. ' +
+                                    'Use Retry confirmation when ready.';
+                            } else {
                                 this.checkoutError =
                                     `${error.message} Your cart has been kept.`;
-
-                                return this.loadLessons();
                             }
 
-                            // A missing response does not prove the order failed.
-                            // Block repeat checkout until its status is checked.
-                            this.orderUncertain = true;
-                            this.checkoutError =
-                                'Could not confirm your order. Your cart has ' +
-                                'been kept and checkout is paused to avoid a ' +
-                                'duplicate. Check the orders collection in Atlas ' +
-                                'before reloading or placing another order.';
-
-                            console.error(error);
+                            console.error('Checkout error:', error);
                         })
                         .finally(() => {
                             this.submitting = false;
@@ -464,6 +619,12 @@
             },
 
             computed: {
+                cartLocked() {
+                    return this.submitting ||
+                        Boolean(this.pendingOrder) ||
+                        this.postUncertain;
+                },
+
                 cartItems() {
                     return [...new Set(this.cart)].map(id => {
                         const lesson = this.lessons.find(
@@ -475,7 +636,9 @@
                             subject: lesson
                                 ? lesson.subject
                                 : `Unavailable lesson ${id}`,
-                            location: lesson ? lesson.location : 'Unavailable',
+                            location: lesson
+                                ? lesson.location
+                                : 'Unavailable',
                             price: lesson ? lesson.price : 0,
                             spaces: lesson ? lesson.spaces : 0,
                             exists: Boolean(lesson),
@@ -485,10 +648,18 @@
                 },
 
                 canCheckout() {
-                    return !this.submitting &&
-                        !this.loading &&
-                        !this.loadError &&
-                        !this.orderUncertain &&
+                    if (
+                        this.submitting ||
+                        this.loading ||
+                        this.postUncertain
+                    ) {
+                        return false;
+                    }
+
+                    // Confirmation can be retried even after a load failure.
+                    if (this.pendingOrder) return true;
+
+                    return !this.loadError &&
                         this.cart.length > 0 &&
                         /^[A-Za-z]+$/.test(this.order.name) &&
                         /^[0-9]+$/.test(this.order.phone) &&
@@ -515,7 +686,9 @@
                             );
                         }
 
-                        return this.sortOrder === 'asc' ? result : -result;
+                        return this.sortOrder === 'asc'
+                            ? result
+                            : -result;
                     });
 
                     return copy;
