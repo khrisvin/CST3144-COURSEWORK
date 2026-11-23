@@ -5,15 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>After-School Lessons</title>
 
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="./style.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 
 <body>
-    <div id="app" v-cloak>
+    <main id="app" v-cloak>
         <h1>After-School Lessons</h1>
         <p>Explore our after-school classes and activities.</p>
 
@@ -35,14 +34,21 @@
 
         <p v-if="loading" role="status">Loading availability...</p>
         <p v-if="loadError" class="error-message" role="alert">{{ loadError }}</p>
+        <p v-if="checkoutError" class="error-message" role="alert">{{ checkoutError }}</p>
         <p v-if="checkoutSuccess" class="success-message" role="status">
             {{ checkoutSuccess }}
         </p>
-        <p v-if="checkoutError" class="error-message" role="alert">
-            {{ checkoutError }}
-        </p>
 
-        <div v-if="!displayCart">
+        <section v-if="!displayCart" aria-label="Lesson catalogue">
+            <div class="search-controls">
+                <label for="lesson-search">Search lessons:</label>
+                <input id="lesson-search"
+                       type="search"
+                       v-model="search"
+                       placeholder="Subject, location, price or spaces">
+                <p v-if="searchMessage" role="status">{{ searchMessage }}</p>
+            </div>
+
             <div class="sort-controls">
                 <div>
                     <label for="sort-by">Sort by:</label>
@@ -63,12 +69,14 @@
                 </div>
             </div>
 
-            <p v-if="!loading && !loadError && !lessons.length">
+            <p v-if="!loading && !loadError && !search.trim() && !lessons.length">
                 No lessons are available.
             </p>
 
             <div class="lesson-list">
-                <div v-for="lesson in sortedLessons" :key="lesson.id" class="lesson">
+                <article v-for="lesson in sortedLessons"
+                         :key="lesson.id"
+                         class="lesson">
                     <i class="lesson-icon" :class="lesson.icon" aria-hidden="true"></i>
                     <h2>{{ lesson.subject }}</h2>
                     <p>Location: {{ lesson.location }}</p>
@@ -80,11 +88,11 @@
                             :disabled="!canAddToCart(lesson)">
                         Add to cart
                     </button>
-                </div>
+                </article>
             </div>
-        </div>
+        </section>
 
-        <div v-else class="cart-page">
+        <section v-else class="cart-page">
             <h2>Your cart</h2>
             <p>Items in your cart: {{ cart.length }}</p>
             <p v-if="!cart.length">Your cart is empty.</p>
@@ -109,7 +117,7 @@
                 </button>
             </div>
 
-            <div class="checkout-form">
+            <form class="checkout-form" @submit.prevent="checkout">
                 <h3>Checkout</h3>
 
                 <p v-if="pendingOrder" role="status">
@@ -122,6 +130,7 @@
                     <input id="customer-name"
                            type="text"
                            v-model="order.name"
+                           autocomplete="name"
                            :disabled="cartLocked"
                            aria-describedby="name-help">
                 </p>
@@ -135,6 +144,7 @@
                            type="tel"
                            inputmode="numeric"
                            v-model="order.phone"
+                           autocomplete="tel"
                            :disabled="cartLocked"
                            aria-describedby="phone-help">
                 </p>
@@ -142,35 +152,48 @@
                     Use digits only, without spaces.
                 </p>
 
-                <button type="button" @click="checkout" :disabled="!canCheckout">
+                <button type="submit" :disabled="!canCheckout">
                     {{ submitting ? 'Submitting...' : pendingOrder ? 'Retry confirmation' : 'Checkout' }}
                 </button>
-            </div>
-        </div>
-    </div>
+            </form>
+        </section>
+    </main>
 
     <script>
-        const { createApp } = Vue;
-        const API_URL = 'https://m01003462-after-school.onrender.com';
+        const isLocalPage = ['localhost', '127.0.0.1'].includes(location.hostname);
+        const useLocalApi = isLocalPage &&
+            new URLSearchParams(location.search).get('api') === 'local';
 
-        createApp({
+        const API_URL = useLocalApi
+            ? 'http://localhost:3000'
+            : 'https://m01003462-after-school.onrender.com';
+
+        Vue.createApp({
             data() {
                 return {
-                    sortBy: 'price',
-                    sortOrder: 'asc',
                     lessons: [],
                     cart: [],
                     displayCart: false,
+                    sortBy: 'price',
+                    sortOrder: 'asc',
+
+                    search: '',
+                    matchIds: null,
+                    searchVersion: 0,
+                    searchTimer: null,
+                    searchMessage: '',
+
                     loading: false,
                     loadError: '',
                     submitting: false,
                     checkoutError: '',
                     checkoutSuccess: '',
+
+                    order: { name: '', phone: '' },
                     pendingOrder: null,
                     postUncertain: false,
                     confirmationUncertain: false,
-                    lastConfirmationUpdates: null,
-                    order: { name: '', phone: '' }
+                    lastConfirmationUpdates: null
                 };
             },
 
@@ -178,48 +201,140 @@
                 this.refreshLessons();
             },
 
-            methods: {
-                requestJson(path, options = {}) {
-                    return fetch(`${API_URL}${path}`, options)
-                        .then(response => response.json().then(data => {
-                            if (!response.ok) {
-                                const error = new Error(data.message || 'Request failed.');
-                                error.status = response.status;
-                                throw error;
-                            }
-                            return data;
-                        }));
+            watch: {
+                search() {
+                    this.scheduleSearch();
+                }
+            },
+
+            computed: {
+                cartLocked() {
+                    return this.submitting || Boolean(this.pendingOrder) || this.postUncertain;
                 },
 
-                loadLessons() {
+                cartItems() {
+                    return [...new Set(this.cart)].map(id => {
+                        const lesson = this.lessons.find(item => item.id === id);
+
+                        return {
+                            id,
+                            subject: lesson?.subject ?? `Unavailable lesson ${id}`,
+                            location: lesson?.location ?? 'Unavailable',
+                            price: lesson?.price ?? 0,
+                            spaces: lesson?.spaces ?? 0,
+                            exists: Boolean(lesson),
+                            quantity: this.cartLessonCount(id)
+                        };
+                    });
+                },
+
+                canCheckout() {
+                    if (this.submitting || this.loading || this.postUncertain) return false;
+                    if (this.pendingOrder) return true;
+
+                    return !this.loadError &&
+                        this.cart.length > 0 &&
+                        /^[A-Za-z]+$/.test(this.order.name) &&
+                        /^[0-9]+$/.test(this.order.phone) &&
+                        this.cartItems.every(item => item.exists && item.quantity <= item.spaces);
+                },
+
+                sortedLessons() {
+                    const rows = this.matchIds === null
+                        ? [...this.lessons]
+                        : this.lessons.filter(lesson => this.matchIds.includes(lesson.id));
+
+                    return rows.sort((a, b) => {
+                        let difference;
+
+                        if (this.sortBy === 'spaces') {
+                            difference = this.availableSpaces(a) - this.availableSpaces(b);
+                        } else if (this.sortBy === 'price') {
+                            difference = a.price - b.price;
+                        } else {
+                            difference = a[this.sortBy].localeCompare(b[this.sortBy]);
+                        }
+
+                        return this.sortOrder === 'asc' ? difference : -difference;
+                    });
+                }
+            },
+
+            methods: {
+                async requestJson(path, options = {}) {
+                    const response = await fetch(`${API_URL}${path}`, options);
+
+                    if (!response.ok) {
+                        const body = await response.json().catch(() => null);
+                        const error = new Error(body?.message || `Request failed (${response.status}).`);
+                        error.status = response.status;
+                        throw error;
+                    }
+
+                    return response.json();
+                },
+
+                async loadLessons() {
                     this.loading = true;
                     this.loadError = '';
 
-                    return this.requestJson('/lessons', { cache: 'no-store' })
-                        .then(data => {
-                            if (!Array.isArray(data) || !data.every(lesson =>
-                                Number.isSafeInteger(lesson.id) &&
-                                Number.isSafeInteger(lesson.spaces) &&
-                                lesson.spaces >= 0
-                            )) {
-                                throw new Error('Invalid lesson data.');
-                            }
-                            this.lessons = data;
-                        })
-                        .catch(error => {
-                            this.loadError =
-                                'Could not refresh availability. Check the backend and try again.';
-                            throw error;
-                        })
-                        .finally(() => {
-                            this.loading = false;
-                        });
+                    try {
+                        const rows = await this.requestJson('/lessons', { cache: 'no-store' });
+
+                        if (!Array.isArray(rows) || !rows.every(lesson =>
+                            Number.isSafeInteger(lesson?.id) &&
+                            Number.isSafeInteger(lesson.spaces) &&
+                            lesson.spaces >= 0
+                        )) {
+                            throw new Error('The backend returned invalid lesson data.');
+                        }
+
+                        // Keep the full catalogue so a search never removes cart items.
+                        this.lessons = rows;
+                    } catch (error) {
+                        this.loadError = 'Could not load lessons. Check the backend and refresh availability.';
+                        throw error;
+                    } finally {
+                        this.loading = false;
+                    }
                 },
 
-                refreshLessons() {
-                    return this.loadLessons().catch(error => {
-                        console.error('Error loading lessons:', error);
-                    });
+                async refreshLessons() {
+                    try {
+                        await this.loadLessons();
+                        this.scheduleSearch();
+                    } catch (error) {
+                        console.error('Loading lessons:', error);
+                    }
+                },
+
+                scheduleSearch() {
+                    clearTimeout(this.searchTimer);
+                    const version = ++this.searchVersion;
+                    const query = this.search.trim();
+
+                    this.matchIds = query ? [] : null;
+                    this.searchMessage = query ? 'Searching...' : '';
+                    if (!query) return;
+
+                    // Wait briefly so typing "Chess" need not send five requests.
+                    this.searchTimer = setTimeout(async () => {
+                        try {
+                            const rows = await this.requestJson(
+                                '/lessons?q=' + encodeURIComponent(query),
+                                { cache: 'no-store' }
+                            );
+
+                            // Ignore a slow response if the user has already typed more.
+                            if (version !== this.searchVersion) return;
+                            this.matchIds = rows.map(row => row.id);
+                            this.searchMessage = rows.length ? '' : 'No matching lessons.';
+                        } catch (error) {
+                            if (version !== this.searchVersion) return;
+                            this.searchMessage = 'Search failed. Click Refresh availability to retry.';
+                            console.error('Searching lessons:', error);
+                        }
+                    }, 250);
                 },
 
                 cartLessonCount(id) {
@@ -245,172 +360,122 @@
                 removeFromCart(id) {
                     if (this.cartLocked || this.loading) return;
                     const index = this.cart.indexOf(id);
+
                     if (index !== -1) {
                         this.cart.splice(index, 1);
                         this.checkoutError = '';
                     }
                 },
 
-                saveOrder() {
-                    // A retry confirms the saved order instead of creating another one.
-                    if (this.pendingOrder) return Promise.resolve();
+                async saveOrder() {
+                    // A confirmation retry must reuse the existing order.
+                    if (this.pendingOrder) return;
 
-                    const payload = {
-                        name: this.order.name,
-                        phone: this.order.phone,
-                        lessonIds: [...this.cart]
-                    };
-
-                    return this.requestJson('/orders', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    })
-                        .then(data => {
-                            if (!data.order || !data.order.id || data.order.status !== 'pending') {
-                                throw new Error('The backend did not return a pending order.');
-                            }
-                            this.pendingOrder = data.order;
-                        })
-                        .catch(error => {
-                            // A lost response can mean the order was saved.
-                            if (error.status !== 400 && error.status !== 409) {
-                                this.postUncertain = true;
-                            }
-                            throw error;
+                    try {
+                        const data = await this.requestJson('/orders', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: this.order.name,
+                                phone: this.order.phone,
+                                lessonIds: [...this.cart]
+                            })
                         });
+
+                        if (!data.order?.id || data.order.status !== 'pending') {
+                            throw new Error('The backend did not return a pending order.');
+                        }
+
+                        this.pendingOrder = data.order;
+                    } catch (error) {
+                        // A lost response does not prove that the order was never saved.
+                        if (![400, 409].includes(error.status)) this.postUncertain = true;
+                        throw error;
+                    }
                 },
 
                 buildConfirmationUpdates() {
                     const quantities = new Map();
+
                     for (const id of this.pendingOrder.lessonIds) {
                         quantities.set(id, (quantities.get(id) || 0) + 1);
                     }
 
                     return [...quantities].map(([id, quantity]) => {
                         const lesson = this.lessons.find(item => item.id === id);
+
                         if (!lesson || lesson.spaces < quantity) {
-                            const label = lesson ? lesson.subject : `lesson ${id}`;
-                            throw new Error(`Not enough spaces for ${label}. Your order remains pending.`);
+                            throw new Error(`Not enough spaces for ${lesson?.subject ?? 'lesson ' + id}.`);
                         }
+
                         return { id, spaces: lesson.spaces - quantity };
                     });
                 },
 
-                sendConfirmation(updates) {
+                async confirmOrder() {
+                    let updates = this.lastConfirmationUpdates;
+
+                    if (!this.confirmationUncertain || !updates) {
+                        await this.loadLessons();
+                        updates = this.buildConfirmationUpdates();
+                    }
+
                     this.lastConfirmationUpdates = updates;
 
-                    return this.requestJson(`/orders/${this.pendingOrder.id}/confirm`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ lessonUpdates: updates })
-                    })
-                        .then(data => {
-                            if (!data.order || data.order.status !== 'confirmed') {
-                                throw new Error('Invalid order confirmation.');
-                            }
-                            this.confirmationUncertain = false;
-                            return data;
-                        })
-                        .catch(error => {
-                            this.confirmationUncertain = ![400, 404, 409].includes(error.status);
-                            throw error;
+                    try {
+                        const id = this.pendingOrder.id;
+                        const data = await this.requestJson(`/orders/${id}/confirm`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lessonUpdates: updates })
                         });
-                },
 
-                confirmOrder() {
-                    if (this.confirmationUncertain && this.lastConfirmationUpdates) {
-                        return this.sendConfirmation(this.lastConfirmationUpdates);
+                        if (data.order?.id !== id || data.order.status !== 'confirmed') {
+                            throw new Error('The backend did not confirm this order.');
+                        }
+
+                        this.confirmationUncertain = false;
+                        return data.order;
+                    } catch (error) {
+                        this.confirmationUncertain = ![400, 404, 409].includes(error.status);
+                        throw error;
                     }
-                    return this.loadLessons()
-                        .then(() => this.sendConfirmation(this.buildConfirmationUpdates()));
                 },
 
-                checkout() {
+                async checkout() {
                     if (!this.canCheckout) return;
+
                     this.submitting = true;
                     this.checkoutError = '';
                     this.checkoutSuccess = '';
 
-                    this.saveOrder()
-                        .then(() => this.confirmOrder())
-                        .then(data => {
-                            this.checkoutSuccess = `Order ${data.order.id} confirmed successfully.`;
-                            this.cart = [];
-                            this.order.name = '';
-                            this.order.phone = '';
-                            this.pendingOrder = null;
-                            this.lastConfirmationUpdates = null;
-                            this.confirmationUncertain = false;
-                            this.displayCart = false;
-                            return this.refreshLessons();
-                        })
-                        .catch(error => {
-                            if (this.postUncertain) {
-                                this.checkoutError =
-                                    'The order submission could not be confirmed. ' +
-                                    'Checkout is paused to avoid another order. ' +
-                                    'Check Atlas before reloading or ordering again.';
-                            } else if (this.pendingOrder) {
-                                this.checkoutError = `${error.message} ` +
-                                    'Your saved order and cart have been kept. ' +
-                                    'Use Retry confirmation when ready.';
-                            } else {
-                                this.checkoutError = `${error.message} Your cart has been kept.`;
-                            }
-                            console.error('Checkout error:', error);
-                        })
-                        .finally(() => {
-                            this.submitting = false;
-                        });
-                }
-            },
+                    try {
+                        await this.saveOrder();
+                        const confirmed = await this.confirmOrder();
 
-            computed: {
-                cartLocked() {
-                    return this.submitting || Boolean(this.pendingOrder) || this.postUncertain;
-                },
-
-                cartItems() {
-                    return [...new Set(this.cart)].map(id => {
-                        const lesson = this.lessons.find(item => item.id === id);
-                        return {
-                            id,
-                            subject: lesson ? lesson.subject : `Unavailable lesson ${id}`,
-                            location: lesson ? lesson.location : 'Unavailable',
-                            price: lesson ? lesson.price : 0,
-                            spaces: lesson ? lesson.spaces : 0,
-                            exists: Boolean(lesson),
-                            quantity: this.cartLessonCount(id)
-                        };
-                    });
-                },
-
-                canCheckout() {
-                    if (this.submitting || this.loading || this.postUncertain) return false;
-                    if (this.pendingOrder) return true;
-
-                    return !this.loadError &&
-                        this.cart.length > 0 &&
-                        /^[A-Za-z]+$/.test(this.order.name) &&
-                        /^[0-9]+$/.test(this.order.phone) &&
-                        this.cartItems.every(item => item.exists && item.quantity <= item.spaces);
-                },
-
-                sortedLessons() {
-                    const copy = [...this.lessons];
-                    copy.sort((a, b) => {
-                        let result;
-                        if (this.sortBy === 'spaces') {
-                            result = this.availableSpaces(a) - this.availableSpaces(b);
-                        } else if (this.sortBy === 'price') {
-                            result = a.price - b.price;
+                        this.checkoutSuccess = `Order ${confirmed.id} confirmed successfully.`;
+                        this.cart = [];
+                        this.order = { name: '', phone: '' };
+                        this.pendingOrder = null;
+                        this.lastConfirmationUpdates = null;
+                        this.confirmationUncertain = false;
+                        this.displayCart = false;
+                        await this.refreshLessons();
+                    } catch (error) {
+                        if (this.postUncertain) {
+                            this.checkoutError =
+                                'The order may have been saved. Please check its status before ordering again.';
+                        } else if (this.pendingOrder) {
+                            this.checkoutError =
+                                `${error.message} Your order is saved and your cart has been kept.`;
                         } else {
-                            result = a[this.sortBy].localeCompare(b[this.sortBy]);
+                            this.checkoutError = `${error.message} Your cart has been kept.`;
                         }
-                        return this.sortOrder === 'asc' ? result : -result;
-                    });
-                    return copy;
+
+                        console.error('Checking out:', error);
+                    } finally {
+                        this.submitting = false;
+                    }
                 }
             }
         }).mount('#app');
