@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,123 +7,9 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 30px;
-            background: #f5f7fa;
-            color: #222;
-        }
-
-        [v-cloak] {
-            display: none;
-        }
-
-        #app {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            color: #2457a7;
-        }
-
-        .toolbar,
-        .sort-controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .lesson-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-        }
-
-        .lesson,
-        .cart-page {
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 20px;
-        }
-
-        .lesson-icon {
-            font-size: 40px;
-            color: #2457a7;
-        }
-
-        .cart-item {
-            border-top: 1px solid #ddd;
-            padding: 15px 0;
-        }
-
-        button {
-            padding: 10px 16px;
-            background: #2457a7;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .remove-button {
-            background: #b83232;
-        }
-
-        .checkout-form {
-            border-top: 1px solid #ddd;
-            margin-top: 20px;
-            padding-top: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: bold;
-        }
-
-        input,
-        select {
-            box-sizing: border-box;
-            padding: 10px;
-            border: 1px solid #aaa;
-            border-radius: 5px;
-            background: white;
-            font-size: 16px;
-        }
-
-        input {
-            width: 100%;
-            max-width: 350px;
-        }
-
-        .input-help {
-            color: #555;
-            font-size: 14px;
-        }
-
-        .error-message {
-            color: #b83232;
-        }
-
-        .success-message {
-            color: #237a38;
-        }
-    </style>
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
@@ -133,38 +18,26 @@
         <p>Explore our after-school classes and activities.</p>
 
         <div class="toolbar">
-            <button
-                type="button"
-                @click="displayCart = !displayCart"
-                :disabled="submitting || (!displayCart && !cart.length)">
-                <i
-                    class="fa-solid fa-cart-shopping"
-                    aria-hidden="true">
-                </i>
+            <button type="button"
+                    @click="displayCart = !displayCart"
+                    :disabled="submitting || (!displayCart && !cart.length)">
+                <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
                 {{ displayCart ? 'Back to lessons' : 'View cart' }}
                 ({{ cart.length }})
             </button>
 
-            <button
-                type="button"
-                @click="refreshLessons"
-                :disabled="loading || submitting">
+            <button type="button"
+                    @click="refreshLessons"
+                    :disabled="loading || submitting">
                 Refresh availability
             </button>
         </div>
 
-        <p v-if="loading" role="status">
-            Loading availability...
-        </p>
-
-        <p v-if="loadError" class="error-message" role="alert">
-            {{ loadError }}
-        </p>
-
+        <p v-if="loading" role="status">Loading availability...</p>
+        <p v-if="loadError" class="error-message" role="alert">{{ loadError }}</p>
         <p v-if="checkoutSuccess" class="success-message" role="status">
             {{ checkoutSuccess }}
         </p>
-
         <p v-if="checkoutError" class="error-message" role="alert">
             {{ checkoutError }}
         </p>
@@ -173,7 +46,6 @@
             <div class="sort-controls">
                 <div>
                     <label for="sort-by">Sort by:</label>
-
                     <select id="sort-by" v-model="sortBy">
                         <option value="subject">Subject</option>
                         <option value="location">Location</option>
@@ -184,7 +56,6 @@
 
                 <div>
                     <label for="sort-order">Order:</label>
-
                     <select id="sort-order" v-model="sortOrder">
                         <option value="asc">Ascending</option>
                         <option value="desc">Descending</option>
@@ -197,26 +68,16 @@
             </p>
 
             <div class="lesson-list">
-                <div
-                    v-for="lesson in sortedLessons"
-                    :key="lesson.id"
-                    class="lesson">
-
-                    <i
-                        class="lesson-icon"
-                        :class="lesson.icon"
-                        aria-hidden="true">
-                    </i>
-
+                <div v-for="lesson in sortedLessons" :key="lesson.id" class="lesson">
+                    <i class="lesson-icon" :class="lesson.icon" aria-hidden="true"></i>
                     <h2>{{ lesson.subject }}</h2>
                     <p>Location: {{ lesson.location }}</p>
                     <p>Price: Rs {{ lesson.price }}</p>
                     <p>Spaces: {{ availableSpaces(lesson) }}</p>
 
-                    <button
-                        type="button"
-                        @click="addToCart(lesson)"
-                        :disabled="!canAddToCart(lesson)">
+                    <button type="button"
+                            @click="addToCart(lesson)"
+                            :disabled="!canAddToCart(lesson)">
                         Add to cart
                     </button>
                 </div>
@@ -226,31 +87,24 @@
         <div v-else class="cart-page">
             <h2>Your cart</h2>
             <p>Items in your cart: {{ cart.length }}</p>
-
             <p v-if="!cart.length">Your cart is empty.</p>
 
-            <div
-                v-for="item in cartItems"
-                :key="item.id"
-                class="cart-item">
-
+            <div v-for="item in cartItems" :key="item.id" class="cart-item">
                 <h3>{{ item.subject }}</h3>
                 <p>Location: {{ item.location }}</p>
                 <p>Price per space: Rs {{ item.price }}</p>
                 <p>Quantity: {{ item.quantity }}</p>
 
-                <p
-                    v-if="!pendingOrder && (!item.exists || item.quantity > item.spaces)"
-                    class="error-message">
+                <p v-if="!pendingOrder && (!item.exists || item.quantity > item.spaces)"
+                   class="error-message">
                     Only {{ item.spaces }} spaces are available.
                     Remove unavailable items before checkout.
                 </p>
 
-                <button
-                    type="button"
-                    class="remove-button"
-                    @click="removeFromCart(item.id)"
-                    :disabled="cartLocked || loading">
+                <button type="button"
+                        class="remove-button"
+                        @click="removeFromCart(item.id)"
+                        :disabled="cartLocked || loading">
                     Remove one
                 </button>
             </div>
@@ -265,46 +119,31 @@
 
                 <p>
                     <label for="customer-name">Name:</label>
-
-                    <input
-                        id="customer-name"
-                        type="text"
-                        v-model="order.name"
-                        :disabled="cartLocked"
-                        aria-describedby="name-help">
+                    <input id="customer-name"
+                           type="text"
+                           v-model="order.name"
+                           :disabled="cartLocked"
+                           aria-describedby="name-help">
                 </p>
-
                 <p id="name-help" class="input-help">
                     Use English letters only, without spaces or numbers.
                 </p>
 
                 <p>
                     <label for="customer-phone">Phone:</label>
-
-                    <input
-                        id="customer-phone"
-                        type="tel"
-                        inputmode="numeric"
-                        v-model="order.phone"
-                        :disabled="cartLocked"
-                        aria-describedby="phone-help">
+                    <input id="customer-phone"
+                           type="tel"
+                           inputmode="numeric"
+                           v-model="order.phone"
+                           :disabled="cartLocked"
+                           aria-describedby="phone-help">
                 </p>
-
                 <p id="phone-help" class="input-help">
                     Use digits only, without spaces.
                 </p>
 
-                <button
-                    type="button"
-                    @click="checkout"
-                    :disabled="!canCheckout">
-                    {{
-                        submitting
-                            ? 'Submitting...'
-                            : pendingOrder
-                                ? 'Retry confirmation'
-                                : 'Checkout'
-                    }}
+                <button type="button" @click="checkout" :disabled="!canCheckout">
+                    {{ submitting ? 'Submitting...' : pendingOrder ? 'Retry confirmation' : 'Checkout' }}
                 </button>
             </div>
         </div>
@@ -312,7 +151,7 @@
 
     <script>
         const { createApp } = Vue;
-        const API_URL = '	https://m01003462-after-school.onrender.com';
+        const API_URL = 'https://m01003462-after-school.onrender.com';
 
         createApp({
             data() {
@@ -331,10 +170,7 @@
                     postUncertain: false,
                     confirmationUncertain: false,
                     lastConfirmationUpdates: null,
-                    order: {
-                        name: '',
-                        phone: ''
-                    }
+                    order: { name: '', phone: '' }
                 };
             },
 
@@ -343,50 +179,36 @@
             },
 
             methods: {
-                // Fetch JSON and preserve the HTTP status on errors.
                 requestJson(path, options = {}) {
                     return fetch(`${API_URL}${path}`, options)
-                        .then(response => {
-                            return response.json().then(data => {
-                                if (!response.ok) {
-                                    const error = new Error(
-                                        data.message || 'Request failed.'
-                                    );
-                                    error.status = response.status;
-                                    throw error;
-                                }
-
-                                return data;
-                            });
-                        });
+                        .then(response => response.json().then(data => {
+                            if (!response.ok) {
+                                const error = new Error(data.message || 'Request failed.');
+                                error.status = response.status;
+                                throw error;
+                            }
+                            return data;
+                        }));
                 },
 
-                // This method rejects on failure so checkout can stop.
                 loadLessons() {
                     this.loading = true;
                     this.loadError = '';
 
-                    return this.requestJson('/lessons', {
-                        cache: 'no-store'
-                    })
+                    return this.requestJson('/lessons', { cache: 'no-store' })
                         .then(data => {
-                            if (
-                                !Array.isArray(data) ||
-                                !data.every(lesson =>
-                                    Number.isSafeInteger(lesson.id) &&
-                                    Number.isSafeInteger(lesson.spaces) &&
-                                    lesson.spaces >= 0
-                                )
-                            ) {
+                            if (!Array.isArray(data) || !data.every(lesson =>
+                                Number.isSafeInteger(lesson.id) &&
+                                Number.isSafeInteger(lesson.spaces) &&
+                                lesson.spaces >= 0
+                            )) {
                                 throw new Error('Invalid lesson data.');
                             }
-
                             this.lessons = data;
                         })
                         .catch(error => {
                             this.loadError =
-                                'Could not refresh availability. ' +
-                                'Check the backend and try again.';
+                                'Could not refresh availability. Check the backend and try again.';
                             throw error;
                         })
                         .finally(() => {
@@ -394,7 +216,6 @@
                         });
                 },
 
-                // Button/mounted wrapper handles load failures.
                 refreshLessons() {
                     return this.loadLessons().catch(error => {
                         console.error('Error loading lessons:', error);
@@ -406,22 +227,16 @@
                 },
 
                 availableSpaces(lesson) {
-                    return Math.max(
-                        0,
-                        lesson.spaces - this.cartLessonCount(lesson.id)
-                    );
+                    return Math.max(0, lesson.spaces - this.cartLessonCount(lesson.id));
                 },
 
                 canAddToCart(lesson) {
-                    return !this.cartLocked &&
-                        !this.loading &&
-                        !this.loadError &&
+                    return !this.cartLocked && !this.loading && !this.loadError &&
                         this.availableSpaces(lesson) > 0;
                 },
 
                 addToCart(lesson) {
                     if (!this.canAddToCart(lesson)) return;
-
                     this.checkoutError = '';
                     this.checkoutSuccess = '';
                     this.cart.push(lesson.id);
@@ -429,9 +244,7 @@
 
                 removeFromCart(id) {
                     if (this.cartLocked || this.loading) return;
-
                     const index = this.cart.indexOf(id);
-
                     if (index !== -1) {
                         this.cart.splice(index, 1);
                         this.checkoutError = '';
@@ -439,10 +252,8 @@
                 },
 
                 saveOrder() {
-                    // Retry confirmation of an existing order, not POST.
-                    if (this.pendingOrder) {
-                        return Promise.resolve();
-                    }
+                    // A retry confirms the saved order instead of creating another one.
+                    if (this.pendingOrder) return Promise.resolve();
 
                     const payload = {
                         name: this.order.name,
@@ -452,127 +263,71 @@
 
                     return this.requestJson('/orders', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     })
                         .then(data => {
-                            if (
-                                !data.order ||
-                                !data.order.id ||
-                                data.order.status !== 'pending'
-                            ) {
-                                throw new Error(
-                                    'The backend did not return a pending order.'
-                                );
+                            if (!data.order || !data.order.id || data.order.status !== 'pending') {
+                                throw new Error('The backend did not return a pending order.');
                             }
-
                             this.pendingOrder = data.order;
                         })
                         .catch(error => {
-                            // A lost POST response may hide a saved order.
-                            if (
-                                error.status !== 400 &&
-                                error.status !== 409
-                            ) {
+                            // A lost response can mean the order was saved.
+                            if (error.status !== 400 && error.status !== 409) {
                                 this.postUncertain = true;
                             }
-
                             throw error;
                         });
                 },
 
                 buildConfirmationUpdates() {
                     const quantities = new Map();
-
                     for (const id of this.pendingOrder.lessonIds) {
-                        quantities.set(
-                            id,
-                            (quantities.get(id) || 0) + 1
-                        );
+                        quantities.set(id, (quantities.get(id) || 0) + 1);
                     }
 
                     return [...quantities].map(([id, quantity]) => {
-                        const lesson = this.lessons.find(
-                            item => item.id === id
-                        );
-
+                        const lesson = this.lessons.find(item => item.id === id);
                         if (!lesson || lesson.spaces < quantity) {
-                            throw new Error(
-                                `Not enough spaces for ${
-                                    lesson ? lesson.subject : `lesson ${id}`
-                                }. Your order remains pending.`
-                            );
+                            const label = lesson ? lesson.subject : `lesson ${id}`;
+                            throw new Error(`Not enough spaces for ${label}. Your order remains pending.`);
                         }
-
-                        return {
-                            id,
-                            spaces: lesson.spaces - quantity
-                        };
+                        return { id, spaces: lesson.spaces - quantity };
                     });
                 },
 
                 sendConfirmation(updates) {
                     this.lastConfirmationUpdates = updates;
 
-                    return this.requestJson(
-                        `/orders/${this.pendingOrder.id}/confirm`,
-                        {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                lessonUpdates: updates
-                            })
-                        }
-                    )
+                    return this.requestJson(`/orders/${this.pendingOrder.id}/confirm`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lessonUpdates: updates })
+                    })
                         .then(data => {
-                            if (
-                                !data.order ||
-                                data.order.status !== 'confirmed'
-                            ) {
-                                throw new Error(
-                                    'Invalid order confirmation.'
-                                );
+                            if (!data.order || data.order.status !== 'confirmed') {
+                                throw new Error('Invalid order confirmation.');
                             }
-
                             this.confirmationUncertain = false;
                             return data;
                         })
                         .catch(error => {
-                            // Retry the same PUT if its outcome is unknown.
-                            // The backend checks whether it already confirmed.
-                            this.confirmationUncertain =
-                                ![400, 404, 409].includes(error.status);
-
+                            this.confirmationUncertain = ![400, 404, 409].includes(error.status);
                             throw error;
                         });
                 },
 
                 confirmOrder() {
-                    if (
-                        this.confirmationUncertain &&
-                        this.lastConfirmationUpdates
-                    ) {
-                        return this.sendConfirmation(
-                            this.lastConfirmationUpdates
-                        );
+                    if (this.confirmationUncertain && this.lastConfirmationUpdates) {
+                        return this.sendConfirmation(this.lastConfirmationUpdates);
                     }
-
                     return this.loadLessons()
-                        .then(() => {
-                            const updates =
-                                this.buildConfirmationUpdates();
-
-                            return this.sendConfirmation(updates);
-                        });
+                        .then(() => this.sendConfirmation(this.buildConfirmationUpdates()));
                 },
 
                 checkout() {
                     if (!this.canCheckout) return;
-
                     this.submitting = true;
                     this.checkoutError = '';
                     this.checkoutSuccess = '';
@@ -580,9 +335,7 @@
                     this.saveOrder()
                         .then(() => this.confirmOrder())
                         .then(data => {
-                            this.checkoutSuccess =
-                                `Order ${data.order.id} confirmed successfully.`;
-
+                            this.checkoutSuccess = `Order ${data.order.id} confirmed successfully.`;
                             this.cart = [];
                             this.order.name = '';
                             this.order.phone = '';
@@ -590,8 +343,6 @@
                             this.lastConfirmationUpdates = null;
                             this.confirmationUncertain = false;
                             this.displayCart = false;
-
-                            // A refresh failure must not undo confirmed success.
                             return this.refreshLessons();
                         })
                         .catch(error => {
@@ -601,15 +352,12 @@
                                     'Checkout is paused to avoid another order. ' +
                                     'Check Atlas before reloading or ordering again.';
                             } else if (this.pendingOrder) {
-                                this.checkoutError =
-                                    `${error.message} ` +
+                                this.checkoutError = `${error.message} ` +
                                     'Your saved order and cart have been kept. ' +
                                     'Use Retry confirmation when ready.';
                             } else {
-                                this.checkoutError =
-                                    `${error.message} Your cart has been kept.`;
+                                this.checkoutError = `${error.message} Your cart has been kept.`;
                             }
-
                             console.error('Checkout error:', error);
                         })
                         .finally(() => {
@@ -620,25 +368,16 @@
 
             computed: {
                 cartLocked() {
-                    return this.submitting ||
-                        Boolean(this.pendingOrder) ||
-                        this.postUncertain;
+                    return this.submitting || Boolean(this.pendingOrder) || this.postUncertain;
                 },
 
                 cartItems() {
                     return [...new Set(this.cart)].map(id => {
-                        const lesson = this.lessons.find(
-                            item => item.id === id
-                        );
-
+                        const lesson = this.lessons.find(item => item.id === id);
                         return {
                             id,
-                            subject: lesson
-                                ? lesson.subject
-                                : `Unavailable lesson ${id}`,
-                            location: lesson
-                                ? lesson.location
-                                : 'Unavailable',
+                            subject: lesson ? lesson.subject : `Unavailable lesson ${id}`,
+                            location: lesson ? lesson.location : 'Unavailable',
                             price: lesson ? lesson.price : 0,
                             spaces: lesson ? lesson.spaces : 0,
                             exists: Boolean(lesson),
@@ -648,54 +387,33 @@
                 },
 
                 canCheckout() {
-                    if (
-                        this.submitting ||
-                        this.loading ||
-                        this.postUncertain
-                    ) {
-                        return false;
-                    }
-
-                    // Confirmation can be retried even after a load failure.
+                    if (this.submitting || this.loading || this.postUncertain) return false;
                     if (this.pendingOrder) return true;
 
                     return !this.loadError &&
                         this.cart.length > 0 &&
                         /^[A-Za-z]+$/.test(this.order.name) &&
                         /^[0-9]+$/.test(this.order.phone) &&
-                        this.cartItems.every(item =>
-                            item.exists && item.quantity <= item.spaces
-                        );
+                        this.cartItems.every(item => item.exists && item.quantity <= item.spaces);
                 },
 
                 sortedLessons() {
                     const copy = [...this.lessons];
-
                     copy.sort((a, b) => {
                         let result;
-
                         if (this.sortBy === 'spaces') {
-                            result =
-                                this.availableSpaces(a) -
-                                this.availableSpaces(b);
+                            result = this.availableSpaces(a) - this.availableSpaces(b);
                         } else if (this.sortBy === 'price') {
                             result = a.price - b.price;
                         } else {
-                            result = a[this.sortBy].localeCompare(
-                                b[this.sortBy]
-                            );
+                            result = a[this.sortBy].localeCompare(b[this.sortBy]);
                         }
-
-                        return this.sortOrder === 'asc'
-                            ? result
-                            : -result;
+                        return this.sortOrder === 'asc' ? result : -result;
                     });
-
                     return copy;
                 }
             }
         }).mount('#app');
     </script>
 </body>
-
 </html>
