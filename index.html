@@ -77,7 +77,20 @@
                 <article v-for="lesson in sortedLessons"
                          :key="lesson.id"
                          class="lesson">
-                    <i class="lesson-icon" :class="lesson.icon" aria-hidden="true"></i>
+
+                    <!-- The heading below names the lesson, so the photo has empty alt text. -->
+                    <img v-if="imageFiles[lesson.id] && !imageErrors[lesson.id]"
+                         class="lesson-photo"
+                         :src="imageBase + imageFiles[lesson.id]"
+                         alt=""
+                         loading="lazy"
+                         @error="imageErrors[lesson.id] = true">
+
+                    <i v-else
+                       class="lesson-icon"
+                       :class="lesson.icon"
+                       aria-hidden="true"></i>
+
                     <h2>{{ lesson.subject }}</h2>
                     <p>Location: {{ lesson.location }}</p>
                     <p>Price: Rs {{ lesson.price }}</p>
@@ -171,6 +184,21 @@
         Vue.createApp({
             data() {
                 return {
+                    imageBase: API_URL + '/images/',
+                    imageFiles: {
+                        1001: 'maths.jpg',
+                        1002: 'english.jpg',
+                        1003: 'science.jpg',
+                        1004: 'french.jpg',
+                        1005: 'computer-studies.jpg',
+                        1006: 'art.webp',
+                        1007: 'music.jpg',
+                        1008: 'football.jpg',
+                        1009: 'drama.jpg',
+                        1010: 'chess.jpg'
+                    },
+                    imageErrors: {},
+
                     lessons: [],
                     cart: [],
                     displayCart: false,
@@ -289,7 +317,7 @@
                             throw new Error('The backend returned invalid lesson data.');
                         }
 
-                        // Keep the full catalogue so a search never removes cart items.
+                        // Searching must not remove lessons from the cart's catalogue.
                         this.lessons = rows;
                     } catch (error) {
                         this.loadError = 'Could not load lessons. Check the backend and refresh availability.';
@@ -317,7 +345,6 @@
                     this.searchMessage = query ? 'Searching...' : '';
                     if (!query) return;
 
-                    // Wait briefly so typing "Chess" need not send five requests.
                     this.searchTimer = setTimeout(async () => {
                         try {
                             const rows = await this.requestJson(
@@ -325,12 +352,14 @@
                                 { cache: 'no-store' }
                             );
 
-                            // Ignore a slow response if the user has already typed more.
+                            // Ignore a response if the search text has changed since it was sent.
                             if (version !== this.searchVersion) return;
+
                             this.matchIds = rows.map(row => row.id);
                             this.searchMessage = rows.length ? '' : 'No matching lessons.';
                         } catch (error) {
                             if (version !== this.searchVersion) return;
+
                             this.searchMessage = 'Search failed. Click Refresh availability to retry.';
                             console.error('Searching lessons:', error);
                         }
@@ -352,6 +381,7 @@
 
                 addToCart(lesson) {
                     if (!this.canAddToCart(lesson)) return;
+
                     this.checkoutError = '';
                     this.checkoutSuccess = '';
                     this.cart.push(lesson.id);
@@ -359,8 +389,8 @@
 
                 removeFromCart(id) {
                     if (this.cartLocked || this.loading) return;
-                    const index = this.cart.indexOf(id);
 
+                    const index = this.cart.indexOf(id);
                     if (index !== -1) {
                         this.cart.splice(index, 1);
                         this.checkoutError = '';
@@ -368,7 +398,7 @@
                 },
 
                 async saveOrder() {
-                    // A confirmation retry must reuse the existing order.
+                    // Retry a saved order without creating a duplicate.
                     if (this.pendingOrder) return;
 
                     try {
@@ -388,7 +418,6 @@
 
                         this.pendingOrder = data.order;
                     } catch (error) {
-                        // A lost response does not prove that the order was never saved.
                         if (![400, 409].includes(error.status)) this.postUncertain = true;
                         throw error;
                     }
@@ -460,6 +489,7 @@
                         this.lastConfirmationUpdates = null;
                         this.confirmationUncertain = false;
                         this.displayCart = false;
+
                         await this.refreshLessons();
                     } catch (error) {
                         if (this.postUncertain) {
@@ -472,7 +502,7 @@
                             this.checkoutError = `${error.message} Your cart has been kept.`;
                         }
 
-                        console.error('Checking out:', error);
+                        console.error('Checkout:', error);
                     } finally {
                         this.submitting = false;
                     }

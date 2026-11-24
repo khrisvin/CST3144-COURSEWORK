@@ -1,111 +1,382 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 30px;
-    background: #f5f7fa;
-    color: #222;
+:root {
+    --navy: #131e2c;
+    --navy-light: #223347;
+    --yellow: #ffd54a;
+    --yellow-hover: #f6c631;
+    --page: #eef1f3;
+    --paper: #ffffff;
+    --ink: #17212b;
+    --muted: #455565;
+    --line: #cdd5dc;
+    --green: #17603d;
+    --red: #942d25;
+    --inset: clamp(1rem, 4vw, 3.5rem);
+}
+
+* {
+    box-sizing: border-box;
 }
 
 [v-cloak] {
     display: none;
 }
 
-#app {
-    max-width: 1100px;
-    margin: 0 auto;
+body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--page);
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.5;
 }
 
-h1 {
-    color: #2457a7;
+button,
+input,
+select {
+    font: inherit;
 }
 
-.toolbar,
-.sort-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.lesson-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-}
-
-.lesson,
-.cart-page {
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 20px;
-}
-
-.lesson-icon {
-    font-size: 40px;
-    color: #2457a7;
-}
-
-.cart-item {
-    border-top: 1px solid #ddd;
-    padding: 15px 0;
+button,
+input,
+select {
+    min-height: 44px;
 }
 
 button {
-    padding: 10px 16px;
-    background: #2457a7;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
+    padding: 0.6rem 1.15rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-weight: 700;
     cursor: pointer;
 }
 
 button:disabled {
-    opacity: 0.5;
     cursor: not-allowed;
+    opacity: 0.55;
 }
 
-.remove-button {
-    background: #b83232;
+:where(button, input, select):focus-visible {
+    outline: 3px solid #2473ba;
+    outline-offset: 3px;
 }
 
-.checkout-form {
-    border-top: 1px solid #ddd;
-    margin-top: 20px;
-    padding-top: 20px;
+#app {
+    max-width: 1500px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding-bottom: 3rem;
+}
+
+/* The first heading, introduction and toolbar form the shop header. */
+#app > h1 {
+    margin: 0;
+    padding: 1.5rem var(--inset) 0.15rem;
+    color: white;
+    background: var(--navy);
+    font-size: clamp(1.7rem, 4vw, 2.7rem);
+    letter-spacing: -0.045em;
+    line-height: 1.15;
+}
+
+#app > h1 + p {
+    margin: 0;
+    padding: 0.25rem var(--inset) 1.2rem;
+    color: #d8e2ed;
+    background: var(--navy);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+    padding: 0.75rem var(--inset);
+    background: var(--navy-light);
+}
+
+.toolbar button {
+    color: white;
+    background: transparent;
+    border-color: #8495a7;
+}
+
+.toolbar button:first-child {
+    color: var(--ink);
+    background: var(--yellow);
+    border-color: var(--yellow);
+}
+
+.toolbar button:hover:not(:disabled) {
+    border-color: white;
+}
+
+.toolbar button:focus-visible {
+    outline-color: white;
+}
+
+/* Catalogue search and sorting */
+#app > section:not(.cart-page) {
+    margin: 1.5rem var(--inset) 0;
+}
+
+.search-controls {
+    padding: 1.1rem 1.25rem 0;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
 }
 
 label {
     display: block;
-    margin-bottom: 6px;
-    font-weight: bold;
+    margin-bottom: 0.35rem;
+    font-weight: 700;
 }
 
 input,
 select {
-    box-sizing: border-box;
-    padding: 10px;
-    border: 1px solid #aaa;
-    border-radius: 5px;
-    background: white;
-    font-size: 16px;
+    max-width: 100%;
+    padding: 0.55rem 0.8rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid #8897a5;
+    border-radius: 7px;
 }
 
-input {
+#lesson-search {
+    width: 100%;
+    min-height: 48px;
+    padding-inline: 1rem;
+    border: 2px solid #8794a0;
+    font-size: 1rem;
+}
+
+#lesson-search:focus {
+    border-color: #ad6900;
+    outline: 3px solid #ffdf96;
+    outline-offset: 0;
+}
+
+.search-controls p {
+    margin: 0.65rem 0 0;
+    color: var(--muted);
+}
+
+.sort-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem 1.25rem;
+    padding: 1rem 1.25rem 1.15rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+}
+
+.sort-controls label {
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.sort-controls select {
+    min-width: 9rem;
+}
+
+/* Lesson cards */
+.lesson-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 225px), 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+.lesson {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 1.15rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+/* A single search result stays card-sized on desktop. */
+.lesson:only-child {
     width: 100%;
     max-width: 350px;
 }
 
-.input-help {
-    color: #555;
-    font-size: 14px;
+.lesson-icon {
+    display: grid;
+    width: 100%;
+    height: 5.5rem;
+    margin-bottom: 1rem;
+    place-items: center;
+    color: #284c70;
+    background: #edf3f8;
+    border-radius: 8px;
+    font-size: 2.5rem;
 }
 
+.lesson h2 {
+    margin: 0 0 0.45rem;
+    font-size: 1.25rem;
+    line-height: 1.25;
+}
+
+.lesson p {
+    margin: 0.2rem 0;
+    color: var(--muted);
+}
+
+/* In the current HTML, the card paragraphs are location, price, spaces. */
+.lesson p:nth-of-type(2) {
+    color: var(--ink);
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.lesson p:last-of-type {
+    margin-bottom: 1rem;
+}
+
+.lesson button,
+.checkout-form button[type="submit"] {
+    color: #231d09;
+    background: var(--yellow);
+    border-color: #e4b72e;
+    border-radius: 999px;
+}
+
+.lesson button {
+    width: 100%;
+    margin-top: auto;
+}
+
+.lesson button:hover:not(:disabled),
+.checkout-form button[type="submit"]:hover:not(:disabled),
+.toolbar button:first-child:hover:not(:disabled) {
+    background: var(--yellow-hover);
+}
+
+/* Cart and checkout */
+.cart-page {
+    max-width: 850px;
+    margin: 1.5rem auto 0;
+    padding: 0 var(--inset);
+}
+
+.cart-page > h2 {
+    margin: 0;
+    font-size: 1.7rem;
+}
+
+.cart-page > p {
+    margin: 0.3rem 0 1rem;
+    color: var(--muted);
+}
+
+.cart-item,
+.checkout-form {
+    margin-bottom: 1rem;
+    padding: 1.25rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.cart-item h3,
+.checkout-form h3 {
+    margin: 0 0 0.65rem;
+}
+
+.cart-item p {
+    margin: 0.25rem 0;
+}
+
+.remove-button {
+    margin-top: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.remove-button:hover:not(:disabled) {
+    background: #f1f4f7;
+}
+
+.checkout-form input {
+    width: 100%;
+    max-width: 28rem;
+}
+
+.checkout-form .input-help {
+    margin-top: -0.65rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.checkout-form button[type="submit"] {
+    margin-top: 0.4rem;
+    padding-inline: 1.75rem;
+}
+
+#app > p[role="status"],
+#app > p[role="alert"] {
+    margin: 1rem var(--inset);
+}
+
+.success-message,
 .error-message {
-    color: #b83232;
+    padding: 0.7rem 0.9rem;
+    border-left: 4px solid currentColor;
+    border-radius: 4px;
 }
 
 .success-message {
-    color: #237a38;
+    color: var(--green);
+    background: #e8f5ed;
+}
+
+.error-message {
+    color: var(--red);
+    background: #fff0ed;
+}
+
+/* Phone layout */
+@media (max-width: 560px) {
+    .toolbar button {
+        flex: 1 1 auto;
+    }
+
+    .sort-controls {
+        gap: 0.75rem;
+    }
+
+    .sort-controls > div {
+        flex: 1 1 7rem;
+        min-width: 0;
+    }
+
+    .sort-controls select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .lesson:only-child {
+        max-width: none;
+    }
+
+    .checkout-form button[type="submit"] {
+        width: 100%;
+    }
+}
+.lesson .lesson-photo {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: clamp(9rem, 15vw, 12rem);
+    object-fit: contain;
+    background: #f6f8fa;
+    border-radius: 8px;
+    margin-bottom: 1rem;
 }
