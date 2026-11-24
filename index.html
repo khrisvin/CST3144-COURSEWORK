@@ -59,6 +59,17 @@
                         <option value="spaces">Spaces</option>
                     </select>
                 </div>
+                                <div>
+                    <label for="teacher-filter">Teacher:</label>
+                    <select id="teacher-filter" v-model="selectedTeacherId">
+                        <option value="">All teachers</option>
+                        <option v-for="teacher in teachers"
+                                :key="teacher.id"
+                                :value="teacher.id">
+                            {{ teacher.firstName }} {{ teacher.lastName }}
+                        </option>
+                    </select>
+                </div>
 
                 <div>
                     <label for="sort-order">Order:</label>
@@ -199,7 +210,10 @@
                     },
                     imageErrors: {},
 
-                    lessons: [],
+                    
+                                        lessons: [],
+                    teachers: [],
+                    selectedTeacherId: '',
                     cart: [],
                     displayCart: false,
                     sortBy: 'price',
@@ -225,8 +239,14 @@
                 };
             },
 
-            mounted() {
+                        async mounted() {
                 this.refreshLessons();
+
+                try {
+                    this.teachers = await this.requestJson('/teachers');
+                } catch (error) {
+                    console.error('Could not load teachers:', error);
+                }
             },
 
             watch: {
@@ -268,10 +288,17 @@
                 },
 
                 sortedLessons() {
-                    const rows = this.matchIds === null
-                        ? [...this.lessons]
-                        : this.lessons.filter(lesson => this.matchIds.includes(lesson.id));
+                   const teacher = this.teachers.find(t => t.id === this.selectedTeacherId);
 
+const rows = this.lessons.filter(lesson => {
+    const matchesSearch =
+        this.matchIds === null || this.matchIds.includes(lesson.id);
+
+    const matchesTeacher =
+        !teacher || teacher.lessonIds.includes(lesson.id);
+
+    return matchesSearch && matchesTeacher;
+});
                     return rows.sort((a, b) => {
                         let difference;
 
